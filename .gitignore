@@ -1,0 +1,41 @@
+# Dependency & environment directories
+backend/venv/
+frontend/node_modules/
+
+# Next.js Build Outputs
+frontend/.next/
+frontend/out/
+dist/
+build/
+
+# Python compiled cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local uploads & test files (Keep git light)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Sensitive Environment variables & secrets (CRITICAL)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Editor & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
