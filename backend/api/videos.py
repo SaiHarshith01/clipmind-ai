@@ -113,17 +113,53 @@ def get_video_transcript(
     if video.owner_id != current_user.id and user_role_str != "Administrator":
         raise HTTPException(status_code=403, detail="Access Denied: You do not own this video.")
         
-    # Fetch from MongoDB transcripts collection
+    # Fetch from MongoDB
     from core.database import mongo_db
-    transcript_doc = mongo_db["transcripts"].find_one({"video_id": video.id})
-    if not transcript_doc:
+    doc = mongo_db["transcripts_and_summaries"].find_one({"video_id": video.id})
+    if not doc or "transcript" not in doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND if hasattr(status, 'HTTP_404_NOT_FOUND') else 404, 
+            status_code=404, 
             detail="Transcript not found or still processing. Please check status."
         )
         
     return {
         "video_id": video.id,
-        "transcript": transcript_doc["transcript"]
+        "filename": video.filename,
+        "transcript": doc["transcript"]
     }
+
+# 6. Get Video Summary Endpoint
+@router.get("/{video_id}/summary")
+def get_video_summary(
+    video_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    # Check permissions (only owner or administrator can view summary)
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    if video.owner_id != current_user.id and user_role_str != "Administrator":
+        raise HTTPException(status_code=403, detail="Access Denied: You do not own this video.")
+        
+    # Fetch from MongoDB
+    from core.database import mongo_db
+    doc = mongo_db["transcripts_and_summaries"].find_one({"video_id": video.id})
+    if not doc or "short_summary" not in doc:
+        raise HTTPException(
+            status_code=404, 
+            detail="Summary not found or still processing. Please check status."
+        )
+        
+    return {
+        "video_id": video.id,
+        "filename": video.filename,
+        "short_summary": doc.get("short_summary", ""),
+        "key_takeaways": doc.get("key_takeaways", []),
+        "keywords": doc.get("keywords", []),
+        "word_count": doc.get("word_count", 0)
+    }
+
 
