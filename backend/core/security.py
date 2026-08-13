@@ -14,7 +14,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 # FastAPI helper that extracts Bearer token from the 'Authorization' header
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Setup the bcrypt password hashing system
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
