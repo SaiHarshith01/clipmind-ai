@@ -1,3 +1,11 @@
+import os
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded regardless of current working directory
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import auth, videos

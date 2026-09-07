@@ -1,84 +1,83 @@
 import os
-import shutil
-import imageio_ffmpeg
 from core.database import SessionLocal, mongo_db
 from models.schema import Video
-from moviepy import VideoFileClip
-from services.summarizer import generate_summary
 
-# Ensure FFmpeg binary is properly accessible in PATH for OpenAI Whisper on Windows
-try:
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    ffmpeg_dir = os.path.dirname(ffmpeg_exe)
-    target_ffmpeg = os.path.join(ffmpeg_dir, "ffmpeg.exe")
-    if not os.path.exists(target_ffmpeg):
-        shutil.copyfile(ffmpeg_exe, target_ffmpeg)
-    if ffmpeg_dir not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
-except Exception as e:
-    print(f"[AI WORKER] Warning setting up FFmpeg PATH: {e}")
+# Import modular services
+from services.audio_extractor import extract_audio, ensure_browser_compatible_video
+from services.transcriber import transcribe_audio
+from services.summarizer import generate_abstractive_summary
+from services.key_moments import detect_key_moments
+from services.content_insights import extract_content_insights
+from services.analytics import calculate_video_analytics
+from services.youtube_downloader import download_youtube_video
 
-def run_whisper_transcription(audio_path: str) -> str:
+def process_video_task(video_id: int, metadata: dict = None):
     """
-    Loads Whisper with CPU-optimized settings and transcribes the audio file.
-    Falls back gracefully if the audio is silent or unparseable.
+    Modular AI Pipeline Orchestrator:
+    Coordinates audio extraction, CUDA Whisper transcription, Gemini summaries,
+    key moments detection with visual thumbnails, content insights, and analytics.
     """
-    try:
-        import whisper
-        print("[AI WORKER] Loading Whisper 'tiny' model...")
-        # 'tiny' loads in ~1 second and uses ~150MB RAM, perfect for fast local CPU processing
-        model = whisper.load_model("tiny")
-        print(f"[AI WORKER] Transcribing audio file {audio_path} with Whisper...")
-        result = model.transcribe(audio_path, fp16=False) # fp16=False ensures CPU stability
-        transcript = result.get("text", "").strip()
-        print(f"[AI WORKER] Transcription complete! ({len(transcript)} chars)")
-        return transcript if transcript else "No audible dialogue was detected in the video."
-    except Exception as e:
-        print(f"[AI WORKER] Whisper encountered an issue: {e}")
-        return "Audio extracted successfully. Transcription service was unavailable for this file."
-
-def process_video_task(video_id: int):
-    print(f"[AI WORKER] Starting processing pipeline for Video ID: {video_id}")
+    print(f"[AI PIPELINE] Starting end-to-end processing for Video ID: {video_id}")
+    if metadata is None:
+        metadata = {
+            "description": "User uploaded local video file.",
+            "source": "local_upload"
+        }
     
     db = SessionLocal()
     video = None
     try:
         video = db.query(Video).filter(Video.id == video_id).first()
         if not video:
-            print(f"[AI WORKER] Video {video_id} not found in database!")
+            print(f"[AI PIPELINE] Error: Video ID {video_id} not found in database!")
             return
 
-        # 1. Paths configuration
-        video_path = f"uploads/{video.filename}"
-        audio_filename = video.filename.rsplit('.', 1)[0] + ".mp3"
-        audio_path = f"uploads/{audio_filename}"
+        # 1. File Paths Setup (Absolute path to guarantee location)
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        upload_dir = os.path.join(backend_dir, "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
 
-        # 2. Extract Audio using FFmpeg / MoviePy
-        print(f"[AI WORKER] 1/3 Extracting audio track from {video.filename}...")
-        clip = VideoFileClip(video_path)
-        clip.audio.write_audiofile(audio_path, logger=None)
-        clip.close()
-        print(f"[AI WORKER] Audio extracted successfully: {audio_filename}")
+        video_path = os.path.join(upload_dir, video.filename)
+        audio_filename = video.filename.rsplit('.', 1)[0] + ".mp3"
+        audio_path = os.path.join(upload_dir, audio_filename)
+
+        # 2. Standardize Video & Audio for Web Browsers (AAC transcode)
+        print(f"[AI PIPELINE] 1/6 Standardizing video and checking browser audio...")
+        ensure_browser_compatible_video(video_path)
+
+        # 3. Extract Audio Track
+        print(f"[AI PIPELINE] 2/6 Extracting audio track to {audio_filename}...")
+        extract_audio(video_path, audio_path)
 
         # Update status in PostgreSQL to transcribing
         video.status = "transcribing"
         db.commit()
 
-        # 3. Transcribe Audio with Whisper
-        print(f"[AI WORKER] 2/3 Transcribing audio...")
-        transcript_text = run_whisper_transcription(audio_path)
+        # 4. Transcribe Audio with Whisper (CUDA GPU accelerated)
+        print(f"[AI PIPELINE] 3/6 Running Whisper speech-to-text...")
+        transcript_text, segments_list = transcribe_audio(audio_path)
 
         # Update status in PostgreSQL to summarizing
         video.status = "summarizing"
         db.commit()
 
-        # 4. Generate AI NLP Summary & Key Takeaways
-        print(f"[AI WORKER] 3/3 Generating AI summary & key takeaways...")
-        summary_data = generate_summary(transcript_text)
+        # 5. Generate Two-Level Abstractive Summaries
+        print(f"[AI PIPELINE] 4/6 Generating Executive & Detailed Thematic Summaries...")
+        summary_result = generate_abstractive_summary(transcript_text)
+        short_summary = summary_result.get("short_summary", "")
+        detailed_summary = summary_result.get("detailed_summary", "")
 
-        # 5. Store comprehensive document in MongoDB
+        # 6. Detect Key Moments & Extract Visual Thumbnails
+        print(f"[AI PIPELINE] 5/6 Detecting Key Moments and extracting thumbnails...")
+        key_moments = detect_key_moments(segments_list, video_path, video.id)
+
+        # 7. Extract Content Insights (Sentiment & Topics) & Calculate Analytics
+        print(f"[AI PIPELINE] 6/6 Extracting sentiment tone and calculating analytics...")
+        insights = extract_content_insights(transcript_text)
+        analytics = calculate_video_analytics(transcript_text, segments_list)
+
+        # 8. Persist All Intelligence Data to MongoDB
         collection = mongo_db["transcripts_and_summaries"]
-        # Update if exists, or insert new
         collection.update_one(
             {"video_id": video.id},
             {
@@ -86,25 +85,83 @@ def process_video_task(video_id: int):
                     "video_id": video.id,
                     "filename": video.filename,
                     "transcript": transcript_text,
-                    "short_summary": summary_data["short_summary"],
-                    "key_takeaways": summary_data["key_takeaways"],
-                    "keywords": summary_data["keywords"],
-                    "word_count": summary_data["word_count"]
+                    "segments": segments_list,
+                    "short_summary": short_summary,
+                    "detailed_summary": detailed_summary,
+                    "key_takeaways": key_moments,       # List of {"hook", "start", "thumbnail_url"}
+                    "keywords": insights.get("keywords", []),
+                    "sentiment": insights.get("sentiment", "Educational"),
+                    "tone": insights.get("tone", "Informative"),
+                    "key_entities": insights.get("key_entities", []),
+                    "analytics": analytics,             # {"duration_seconds", "speaking_wpm", "reading_time_minutes", ...}
+                    "metadata": metadata,               # {"description", "uploader", "artist", "track", ...}
+                    "word_count": analytics.get("word_count", 0)
                 }
             },
             upsert=True
         )
-        print(f"[AI WORKER] Stored transcript and AI summary into MongoDB!")
+        print(f"[AI PIPELINE] MongoDB document saved successfully for Video ID: {video.id}!")
 
-        # 6. Mark PostgreSQL state as completed
+        # 9. Mark PostgreSQL state as completed
         video.status = "completed"
         db.commit()
-        print(f"[AI WORKER] Pipeline finished successfully for Video ID: {video.id}!")
+        print(f"[AI PIPELINE] Video processing finished successfully for Video ID: {video.id}!")
         
     except Exception as e:
-        print(f"[AI WORKER] Error during processing pipeline: {e}")
+        print(f"[AI PIPELINE] Error during processing pipeline for Video ID {video_id}: {e}")
+        import traceback
+        traceback.print_exc()
         if video:
             video.status = "failed"
             db.commit()
     finally:
         db.close()
+
+def process_youtube_video_task(video_id: int, youtube_url: str):
+    """
+    Background worker task that downloads the YouTube video,
+    ensures AAC audio compatibility, and hands off to the main AI processing pipeline.
+    """
+    print(f"[YOUTUBE WORKER] Ingesting YouTube video: {youtube_url} (Video ID: {video_id})")
+    
+    db = SessionLocal()
+    video = None
+    try:
+        video = db.query(Video).filter(Video.id == video_id).first()
+        if not video:
+            print(f"[YOUTUBE WORKER] Video ID {video_id} not found!")
+            return
+            
+        # 1. Download YouTube Video with AAC audio into absolute upload_dir
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        upload_dir = os.path.join(backend_dir, "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        download_info = download_youtube_video(youtube_url, upload_dir)
+        
+        # 2. Update PostgreSQL record with filename & title
+        video.filename = download_info["filename"]
+        video.title = download_info["title"]
+        video.status = "processing"
+        db.commit()
+        
+        print(f"[YOUTUBE WORKER] Downloaded '{video.title}' -> {video.filename}. Starting AI Pipeline...")
+        db.close()
+        
+        # 3. Process via standard pipeline with rich YouTube metadata
+        process_video_task(video_id, metadata=download_info.get("metadata", {}))
+        
+    except Exception as e:
+        print(f"[YOUTUBE WORKER] Error during YouTube video task: {e}")
+        import traceback
+        traceback.print_exc()
+        if video:
+            try:
+                video.status = "failed"
+                db.commit()
+            except Exception:
+                pass
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass

@@ -10,10 +10,14 @@ from core.security import get_password_hash, verify_password, create_access_toke
 # 1. Define the Router
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
+from typing import Optional
+from models.schema import UserRole
+
 # 2. Schema for Registration
 class UserCreate(BaseModel):
     email: str
     password: str
+    role: Optional[UserRole] = UserRole.LEARNER
 
 # 3. Register Endpoint (Expects JSON body)
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -26,16 +30,17 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="Email is already registered"
         )
     
-    # Create new user (Role defaults to LEARNER automatically in database)
+    # Create new user with selected role
     new_user = User(
         email=user_data.email,
-        hashed_password=get_password_hash(user_data.password)
+        hashed_password=get_password_hash(user_data.password),
+        role=user_data.role
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     
-    return {"message": "User registered successfully!"}
+    return {"message": f"User registered successfully as {new_user.role.value}!"}
 
 # 4. Login Endpoint (Expects Form Data for Swagger UI compatibility)
 @router.post("/login")

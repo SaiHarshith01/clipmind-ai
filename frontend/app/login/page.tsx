@@ -74,8 +74,9 @@ export default function Login() {
         setIsLogin(true); // Toggle to login tab
         setPassword('');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An error occurred. Please try again.';
+      setError(message);
     } finally {
       setLoading(false);
     }
