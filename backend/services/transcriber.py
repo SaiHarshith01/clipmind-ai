@@ -53,7 +53,24 @@ def transcribe_audio(
             device_name = torch.cuda.get_device_name(0)
             print(f"[TRANSCRIBER] Transcribing on GPU ({device_name}) with fp16=False (FP32)...")
             model = get_whisper_model(model_size, device="cuda")
-            result = model.transcribe(audio_path, fp16=False, task=task)
+            
+            # Fast language probing on the first 30 seconds
+            audio_sample = whisper.load_audio(audio_path)
+            mel = whisper.log_mel_spectrogram(whisper.pad_or_trim(audio_sample)).to("cuda")
+            _, probs = model.detect_language(mel)
+            detected_lang = max(probs, key=probs.get)
+            print(f"[TRANSCRIBER] Detected spoken language: '{detected_lang}' ({round(probs[detected_lang]*100, 1)}% confidence)")
+            
+            # If already English, standard transcribe is 2x faster; if non-English (Telugu, Tamil, Hindi), translate to English
+            active_task = "transcribe" if detected_lang == "en" else "translate"
+            
+            result = model.transcribe(
+                audio_path, 
+                fp16=False, 
+                task=active_task,
+                temperature=0,
+                condition_on_previous_text=False
+            )
         except Exception as cuda_err:
             print(f"[TRANSCRIBER] GPU transcription encountered: {cuda_err}. Falling back to CPU...")
             torch.cuda.empty_cache()
@@ -64,7 +81,13 @@ def transcribe_audio(
         try:
             print(f"[TRANSCRIBER] Transcribing on Host CPU (task='{task}')...")
             model = get_whisper_model(model_size, device="cpu")
-            result = model.transcribe(audio_path, fp16=False, task=task)
+            result = model.transcribe(
+                audio_path, 
+                fp16=False, 
+                task=task,
+                temperature=0,
+                condition_on_previous_text=False
+            )
         except Exception as cpu_err:
             print(f"[TRANSCRIBER] CPU transcription failed: {cpu_err}")
             fallback_text = "Audio extracted successfully, but speech transcription could not be completed."
