@@ -51,9 +51,9 @@ def transcribe_audio(
         try:
             torch.cuda.empty_cache()
             device_name = torch.cuda.get_device_name(0)
-            print(f"[TRANSCRIBER] Transcribing on GPU ({device_name}) with fp16=True...")
+            print(f"[TRANSCRIBER] Transcribing on GPU ({device_name}) with fp16=False (FP32)...")
             model = get_whisper_model(model_size, device="cuda")
-            result = model.transcribe(audio_path, fp16=True, task=task)
+            result = model.transcribe(audio_path, fp16=False, task=task)
         except Exception as cuda_err:
             print(f"[TRANSCRIBER] GPU transcription encountered: {cuda_err}. Falling back to CPU...")
             torch.cuda.empty_cache()
