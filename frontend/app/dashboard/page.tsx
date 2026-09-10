@@ -63,7 +63,7 @@ interface SummaryData {
   word_count: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '${API_BASE_URL}';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 let msgSequence = 0;
 function createMsgId(prefix: string): string {
@@ -124,7 +124,7 @@ export default function Dashboard() {
   const fetchHistoryList = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('${API_BASE_URL}/api/videos/', {
+      const res = await fetch(`${API_BASE_URL}/api/videos/`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -144,7 +144,7 @@ export default function Dashboard() {
       return;
     }
 
-    fetch('${API_BASE_URL}/api/auth/me', {
+    fetch(`${API_BASE_URL}/api/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -361,7 +361,7 @@ export default function Dashboard() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('${API_BASE_URL}/api/videos/upload', {
+      const response = await fetch(`${API_BASE_URL}/api/videos/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -400,7 +400,7 @@ export default function Dashboard() {
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch('${API_BASE_URL}/api/videos/youtube', {
+      const response = await fetch(`${API_BASE_URL}/api/videos/youtube`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
