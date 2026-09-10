@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -9,9 +10,9 @@ from core.database import get_db
 from models.schema import User
 
 # In production, this secret key should be placed in your .env file
-SECRET_KEY = "clipmind-super-secret-development-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = os.getenv("SECRET_KEY", "clipmind-super-secret-development-key")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")) # 24 hours
 
 # FastAPI helper that extracts Bearer token from the 'Authorization' header
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
