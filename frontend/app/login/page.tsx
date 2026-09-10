@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KeyRound, Mail, User as UserIcon, ShieldAlert } from 'lucide-react';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export default function Login() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
@@ -28,7 +30,7 @@ export default function Login() {
         params.append('username', email); // Swagger expects email inside 'username'
         params.append('password', password);
 
-        const response = await fetch('http://localhost:8000/api/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -52,7 +54,7 @@ export default function Login() {
       } else {
         // --- REGISTER FLOW ---
         // Register expects JSON body
-        const response = await fetch('http://localhost:8000/api/auth/register', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

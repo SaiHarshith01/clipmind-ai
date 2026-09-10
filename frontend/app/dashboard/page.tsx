@@ -63,6 +63,8 @@ interface SummaryData {
   word_count: number;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '${API_BASE_URL}';
+
 let msgSequence = 0;
 function createMsgId(prefix: string): string {
   msgSequence += 1;
@@ -122,7 +124,7 @@ export default function Dashboard() {
   const fetchHistoryList = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/videos/', {
+      const res = await fetch('${API_BASE_URL}/api/videos/', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -142,7 +144,7 @@ export default function Dashboard() {
       return;
     }
 
-    fetch('http://localhost:8000/api/auth/me', {
+    fetch('${API_BASE_URL}/api/auth/me', {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -171,7 +173,7 @@ export default function Dashboard() {
 
     try {
       // Fetch Summary
-      const summaryRes = await fetch(`http://localhost:8000/api/videos/${videoId}/summary`, {
+      const summaryRes = await fetch(`${API_BASE_URL}/api/videos/${videoId}/summary`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (summaryRes.ok) {
@@ -180,7 +182,7 @@ export default function Dashboard() {
       }
 
       // Fetch Transcript
-      const transcriptRes = await fetch(`http://localhost:8000/api/videos/${videoId}/transcript`, {
+      const transcriptRes = await fetch(`${API_BASE_URL}/api/videos/${videoId}/transcript`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (transcriptRes.ok) {
@@ -190,7 +192,7 @@ export default function Dashboard() {
       }
 
       // Check Bookmark status
-      fetch(`http://localhost:8000/api/videos/${videoId}/is_bookmarked`, {
+      fetch(`${API_BASE_URL}/api/videos/${videoId}/is_bookmarked`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }).then(r => r.json()).then(d => setIsBookmarked(Boolean(d.bookmarked))).catch(() => {});
     } catch (err) {
@@ -205,7 +207,7 @@ export default function Dashboard() {
     setDownloadingExport(format);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:8000/api/videos/${completedVideoId}/export/${format}`, {
+      const res = await fetch(`${API_BASE_URL}/api/videos/${completedVideoId}/export/${format}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error("Export failed");
@@ -229,7 +231,7 @@ export default function Dashboard() {
     if (!completedVideoId) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:8000/api/videos/${completedVideoId}/bookmark`, {
+      const res = await fetch(`${API_BASE_URL}/api/videos/${completedVideoId}/bookmark`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -258,7 +260,7 @@ export default function Dashboard() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:8000/api/videos/${completedVideoId}/chat`, {
+      const res = await fetch(`${API_BASE_URL}/api/videos/${completedVideoId}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -310,7 +312,7 @@ export default function Dashboard() {
     const token = localStorage.getItem('token');
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/videos/${videoId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -359,7 +361,7 @@ export default function Dashboard() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:8000/api/videos/upload', {
+      const response = await fetch('${API_BASE_URL}/api/videos/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -398,7 +400,7 @@ export default function Dashboard() {
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch('http://localhost:8000/api/videos/youtube', {
+      const response = await fetch('${API_BASE_URL}/api/videos/youtube', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -471,7 +473,7 @@ export default function Dashboard() {
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`http://localhost:8000/api/videos/${videoId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -828,7 +830,7 @@ export default function Dashboard() {
                 <div className="overflow-hidden rounded-2xl border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl relative group">
                   <video
                     ref={videoRef}
-                    src={`http://localhost:8000/api/videos/${completedVideoId}/stream?token=${localStorage.getItem('token')}`}
+                    src={`${API_BASE_URL}/api/videos/${completedVideoId}/stream?token=${localStorage.getItem('token')}`}
                     controls
                     className="w-full h-full object-contain focus:outline-none"
                   />
@@ -1061,7 +1063,7 @@ export default function Dashboard() {
                           const hookText = (isNewFormat && typeof takeaway.hook === 'string') ? takeaway.hook : String(takeaway || '');
                           const startTime = (isNewFormat && typeof takeaway.start === 'number') ? takeaway.start : 0.0;
                           const thumbUrl = isNewFormat && typeof takeaway.thumbnail_url === 'string' 
-                            ? `http://localhost:8000${takeaway.thumbnail_url}?token=${localStorage.getItem('token')}`
+                            ? `${API_BASE_URL}${takeaway.thumbnail_url}?token=${localStorage.getItem('token')}`
                             : null;
 
                           return (
