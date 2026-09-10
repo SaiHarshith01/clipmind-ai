@@ -70,7 +70,7 @@ def upload_video(
     db: Session = Depends(get_db),
     # THIS IS THE NEW GUARD: It replaces user_id=1
     # Change it to exactly this:
-    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.EDUCATOR, UserRole.CREATOR]))
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.EDUCATOR, UserRole.CREATOR, UserRole.LEARNER]))
 ):
     if not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="File must be a video format.")
@@ -108,7 +108,7 @@ def import_youtube_video(
     payload: YouTubePayload,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.EDUCATOR, UserRole.CREATOR]))
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.EDUCATOR, UserRole.CREATOR, UserRole.LEARNER]))
 ):
     url = payload.url.strip()
     if not url:
