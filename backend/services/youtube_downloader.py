@@ -13,10 +13,10 @@ def download_youtube_video(url: str, output_dir: str) -> dict:
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
     ffmpeg_dir = os.path.dirname(ffmpeg_exe) if ffmpeg_exe and os.path.exists(ffmpeg_exe) else None
     
-    # Priority: Lightweight progressive MP4 (<= 720p)
-    # Avoids heavy RAM usage & ffmpeg merging errors on cloud servers like Render
+    # Priority: Lightweight streams (<= 720p) with auto-merging for both standard videos and YouTube Shorts
     ydl_opts = {
-        'format': 'best[height<=720][ext=mp4]/best[height<=480][ext=mp4]/best[ext=mp4]/22/18/best',
+        'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo[height<=480]+bestaudio/best[height<=480]/best',
+        'merge_output_format': 'mp4',
         'outtmpl': os.path.join(output_dir, 'youtube_%(id)s.%(ext)s'),
         'noplaylist': True,
         'quiet': False,
@@ -40,7 +40,8 @@ def download_youtube_video(url: str, output_dir: str) -> dict:
     except Exception as e:
         print(f"[YOUTUBE DOWNLOAD] Primary stream download notice ({e}). Attempting fallback stream...")
         fallback_opts = {
-            'format': '18/22/best[ext=mp4]/best',
+            'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
             'outtmpl': os.path.join(output_dir, 'youtube_%(id)s.%(ext)s'),
             'noplaylist': True,
             'quiet': False,
@@ -48,7 +49,7 @@ def download_youtube_video(url: str, output_dir: str) -> dict:
             'socket_timeout': 30,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'ios', 'web']
+                    'player_client': ['tv_embedded', 'tv', 'android', 'ios', 'web']
                 }
             }
         }
