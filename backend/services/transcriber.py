@@ -75,17 +75,23 @@ def transcribe_audio(
             torch.cuda.empty_cache()
             result = None
 
-    # Attempt 2: CPU Fallback (Guaranteed to succeed without VRAM limits)
+    # Attempt 2: CPU Fallback (Guaranteed to succeed, optimized for cloud free-tier CPU speed)
     if result is None:
         try:
-            print(f"[TRANSCRIBER] Transcribing on Host CPU (task='{task}')...")
-            model = get_whisper_model(model_size, device="cpu")
-            result = model.transcribe(
+            print(f"[TRANSCRIBER] Transcribing on Host CPU with ultra-fast greedy decoding (tiny model)...")
+            torch.set_num_threads(2)
+            cpu_model = get_whisper_model("tiny", device="cpu")
+            result = cpu_model.transcribe(
                 audio_path, 
                 fp16=False, 
-                task=task,
+                beam_size=1,
+                best_of=1,
+                task="transcribe",
                 temperature=0,
-                condition_on_previous_text=False
+                condition_on_previous_text=False,
+                no_speech_threshold=0.6,
+                logprob_threshold=-1.0,
+                compression_ratio_threshold=2.4
             )
         except Exception as cpu_err:
             print(f"[TRANSCRIBER] CPU transcription failed: {cpu_err}")
