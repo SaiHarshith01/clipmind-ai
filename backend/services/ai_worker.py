@@ -108,12 +108,18 @@ def process_video_task(video_id: int, metadata: dict = None):
         print(f"[AI PIPELINE] Video processing finished successfully for Video ID: {video.id}!")
         
     except Exception as e:
-        print(f"[AI PIPELINE] Error during processing pipeline for Video ID {video_id}: {e}")
+        err_msg = str(e)
+        print(f"[AI PIPELINE] Error during processing pipeline for Video ID {video_id}: {err_msg}")
         import traceback
         traceback.print_exc()
         if video:
-            video.status = "failed"
-            db.commit()
+            try:
+                short_err = err_msg.split('\n')[0][:70]
+                video.title = f"Pipeline Error: {short_err}"
+                video.status = "failed"
+                db.commit()
+            except Exception:
+                pass
     finally:
         db.close()
 
@@ -151,11 +157,14 @@ def process_youtube_video_task(video_id: int, youtube_url: str):
         process_video_task(video_id, metadata=download_info.get("metadata", {}))
         
     except Exception as e:
-        print(f"[YOUTUBE WORKER] Error during YouTube video task: {e}")
+        err_msg = str(e)
+        print(f"[YOUTUBE WORKER] Error during YouTube video task: {err_msg}")
         import traceback
         traceback.print_exc()
         if video:
             try:
+                short_err = err_msg.split('\n')[0][:70]
+                video.title = f"YouTube Error: {short_err}"
                 video.status = "failed"
                 db.commit()
             except Exception:

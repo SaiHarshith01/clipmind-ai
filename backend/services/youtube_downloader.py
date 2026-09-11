@@ -25,7 +25,7 @@ def download_youtube_video(url: str, output_dir: str) -> dict:
         'socket_timeout': 30,
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'ios', 'mweb', 'web']
+                'player_client': ['tv_embedded', 'tv', 'android', 'ios', 'mweb', 'web']
             }
         }
     }

@@ -33,17 +33,16 @@ def get_whisper_model(model_size: str, device: str):
 
 def transcribe_audio(
     audio_path: str, 
-    model_size: str = "base", 
+    model_size: str = None, 
     task: str = "translate"
 ) -> tuple[str, list[dict]]:
     """
     Dedicated Speech-to-Text & Translation service utilizing OpenAI Whisper.
-    Uses cached 'base' model with CUDA FP16 GPU acceleration and automatic CPU fallback.
-    Automatically translates multi-language audio (e.g. Telugu, Hindi, Tamil) into English.
-    Returns:
-        tuple (transcript_text: str, segments: list[dict])
-        Each segment contains: {'start': float, 'end': float, 'text': str}
+    Uses 'base' model with CUDA FP32 GPU acceleration when available,
+    and 'tiny' model on CPU to guarantee low memory footprint on cloud free tiers.
     """
+    if model_size is None:
+        model_size = "base" if torch.cuda.is_available() else "tiny"
     result = None
     
     # Attempt 1: Fast CUDA GPU Execution
